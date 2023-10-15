@@ -1,6 +1,7 @@
-const { youtube } = require("scrape-youtube");
 const { startClient } = require("./lib/waweb");
 const ytsr = require("ytsr");
+const QRCode = require("qrcode");
+const { sendMessage, getContacts, getChats } = require("./waapi");
 
 const fastify = require("fastify")({ logger: true });
 
@@ -10,8 +11,7 @@ fastify.get("/", (request, reply) => {
   return reply.send({ hello: "world" });
 })
 
-let qrData;
-let isReady = false;
+let qrCode;
 
 fastify.get("/startwa/:clientId?", async (request, reply) => {
 
@@ -23,45 +23,58 @@ fastify.get("/startwa/:clientId?", async (request, reply) => {
     return reply.code(400).send({ message: "clientId must be provided" })
   }
 
+  // run after on qr ready
   const cb = (qr) => {
-    console.log("assigning qr on qr event");
     console.log("in callback");
-    qrData = qr;
+
+    QRCode.toDataURL(qr, (err, url) => {
+      qrCode = url;
+      return reply.send({ message: "waiting to scan qr", qrCode: url });
+    })
   }
 
-  const newClient = await startClient({ clientId, options: { cb } });
-
-  newClient.on("qr", (qr) => {
-    console.log("set qrData");
-    qrData = qr;
-  });
-
-  newClient.on("ready", () => {
-    console.log("set isReady");
-    isReady = true;
-  });
-
-  return reply.send({ message: "client started, waiting for qr. Go to /getqr" });
+  return await startClient({ clientId, options: { cb } });
 })
 
 fastify.get("/getqr", (request, reply) => {
-  console.log(qrData)
-  if (qrData) {
-    return reply.send(qrData);
+  if (qrCode) {
+    reply.send(qrCode);
   }
-  return reply.send({ message: "qr not ready, wait for a while then refresh" });
+  return reply.send({ message: "no qr" });
+})
+
+fastify.get("/send_message", async (request, reply) => {
+
+  const to = request.body?.to || request.params?.to;
+  const message = request.body?.message || request.params?.message;
+  const from = request.body?.from || request.params?.from;
+
+  if (!to || !message || !from) {
+    return reply.send({ success: false, message: "'to', 'message', and 'from' is required" });
+  }
+
+  const result = await sendMessage(to, message, from);
+
+  return reply.send({ success: true, result });
+})
+
+fastify.get("/contacts", async (request, reply) => {
+  const from = request.body?.from || request.params?.from;
+
+  const result = await getContacts(from);
+
+  return reply.send({ success: true, result });
+})
+
+fastify.get("/chats", async (request, reply) => {
+  const from = request.body?.from || request.params?.from;
+
+  const result = await getChats(from);
+
+  return reply.send({ success: true, result });
 })
 
 fastify.get("/listyt/:search?", async (request, reply) => {
-
-  // const searchQuery = request.params?.search || request.query?.search || request.body?.search;
-  // const type = request.query?.type || request.body?.type;
-
-  // const results = await youtube.search(searchQuery, { type });
-
-  // console.log("results: ", results)
-  // console.log("results.videos: ", results.videos)
-  // return reply.send({ success: true, data: results.videos });
 
   const messageBody = request.params?.messageBody || request.query?.messageBody || request.body?.messageBody || "";
 
