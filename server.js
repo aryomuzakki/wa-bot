@@ -45,9 +45,9 @@ fastify.get("/getqr", (request, reply) => {
 
 fastify.get("/send_message", async (request, reply) => {
 
-  const to = request.body?.to || request.params?.to;
-  const message = request.body?.message || request.params?.message;
-  const from = request.body?.from || request.params?.from;
+  const to = request.body?.to || request.query?.to;
+  const message = request.body?.message || request.query?.message;
+  const from = request.body?.from || request.query?.from;
 
   if (!to || !message || !from) {
     return reply.send({ success: false, message: "'to', 'message', and 'from' is required" });
@@ -59,7 +59,7 @@ fastify.get("/send_message", async (request, reply) => {
 })
 
 fastify.get("/contacts", async (request, reply) => {
-  const from = request.body?.from || request.params?.from;
+  const from = request.body?.from || request.query?.from;
 
   const result = await getContacts(from);
 
@@ -67,7 +67,7 @@ fastify.get("/contacts", async (request, reply) => {
 })
 
 fastify.get("/chats", async (request, reply) => {
-  const from = request.body?.from || request.params?.from;
+  const from = request.body?.from || request.query?.from;
 
   const result = await getChats(from);
 
